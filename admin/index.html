@@ -331,18 +331,10 @@
 
   </div>
 
-  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script>
-    const socket = io("https://hackoniotwebsitebackend-production.up.railway.app");
-    socket.onAny((event) => {
-      console.log("Received socket event on Admin:", event);
-    });
-
-    const API_URL = "https://hackoniotwebsitebackend-production.up.railway.app";
-
     async function triggerEvent(eventName) {
       try {
-        const res = await fetch(`${API_URL}/admin/trigger`, {
+        const res = await fetch('/admin/trigger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: eventName })
@@ -361,7 +353,7 @@
       const quizId = document.getElementById('leaderboardQuizSelect').value;
       if (confirm(`Are you sure you want to clear all data for ${quizId}?`)) {
         try {
-          const res = await fetch(`${API_URL}/admin/leaderboard/${quizId}`, { method: 'DELETE' });
+          const res = await fetch(`/admin/leaderboard/${quizId}`, { method: 'DELETE' });
           if (res.ok) {
             document.getElementById('status').innerText = `${quizId} Leaderboard cleared!`;
             fetchAdminLeaderboard();
@@ -385,7 +377,7 @@
     async function fetchAdminLeaderboard() {
       const quizId = document.getElementById('viewLeaderboardSelect').value;
       try {
-        const res = await fetch(`${API_URL}/api/leaderboard/${quizId}`);
+        const res = await fetch(`/api/leaderboard/${quizId}`);
         const data = await res.json();
         const tbody = document.getElementById('adminLeaderboardList');
         tbody.innerHTML = '';
@@ -416,7 +408,7 @@
       const correctAnswer = document.getElementById('qAns').value;
 
       try {
-        const res = await fetch(`${API_URL}/admin/questions/${quizId}`, {
+        const res = await fetch(`/admin/questions/${quizId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, options, correctAnswer: parseInt(correctAnswer) })
@@ -440,7 +432,7 @@
 
     async function fetchFinalResults() {
       try {
-        const res = await fetch(`${API_URL}/api/final-results`);
+        const res = await fetch('/api/final-results');
         const data = await res.json();
 
         const tbody = document.getElementById('resultList');
@@ -474,7 +466,7 @@
       const members = membersRaw.split(',').map(m => m.trim()).filter(m => m);
 
       try {
-        const res = await fetch(`${API_URL}/admin/final-results`, {
+        const res = await fetch('/admin/final-results', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teamName, members, position: parseInt(position) })
@@ -498,7 +490,7 @@
     async function deleteFinalResult(id) {
       if (confirm('Delete this result?')) {
         try {
-          const res = await fetch(`${API_URL}/admin/final-results/${id}`, { method: 'DELETE' });
+          const res = await fetch(`/admin/final-results/${id}`, { method: 'DELETE' });
           if (res.ok) fetchFinalResults();
         } catch (err) {
           console.error(err);
@@ -509,7 +501,7 @@
     // --- MENTEE MONITOR POLLING ---
     async function refreshMenteeMonitor() {
       try {
-        const res = await fetch(`${API_URL}/admin/mentee-state`);
+        const res = await fetch('/admin/mentee-state');
         const state = await res.json();
 
         const indicator = document.getElementById('mentee-active-indicator');

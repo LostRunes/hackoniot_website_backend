@@ -15,11 +15,18 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = [
+    'http://localhost:5000',
+    'http://localhost:5173',
+    'https://hackoniot-website-frontend.vercel.app'
+];
+
 // CORS setup to allow frontend
 const io = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ['GET', 'POST']
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true
     }
 });
 
@@ -28,7 +35,8 @@ setupSockets(io);
 
 // Middleware
 app.use(cors({
-    origin: "*"
+    origin: allowedOrigins,
+    credentials: true
 }));
 app.use(express.json());
 app.use(express.static('admin')); // Serve admin panel statically
