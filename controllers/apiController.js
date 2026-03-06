@@ -137,17 +137,64 @@ export const getQuestions = async (req, res) => {
 
 // Extremely simple admin command trigger endpoint
 // Security Note: In production, add auth middleware here.
+// --- MENTEE QUIZ STATE (In-memory for live event) ---
+let menteeState = {
+    activeQuestionIndex: 0,
+    isRevealed: false,
+    votes: { A: 0, B: 0, C: 0, D: 0 },
+    isActive: false
+};
+
+export const getMenteeState = (req, res) => {
+    res.json(menteeState);
+};
+
 export const triggerAdminEvent = (req, res) => {
     const { event } = req.body;
     if (!event) return res.status(400).json({ error: "No event specified" });
 
     const io = req.app.get('io');
-    if (io) {
-        io.emit(event);
-        res.json({ success: true, event });
+    if (!io) return res.status(500).json({ error: "Socket IO not initialized" });
+
+    // Handle Mentee Logic if event matches
+    if (event === 'startMenteeQuiz') {
+        menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true };
+        io.emit('startMenteeQuiz', menteeState);
+    } else if (event === 'nextMenteeQuestion') {
+        const MAX_QUESTIONS = 12; // Hardcoded count from mentee_questions.json
+        if (menteeState.activeQuestionIndex < MAX_QUESTIONS - 1) {
+            menteeState.activeQuestionIndex++;
+            menteeState.isRevealed = false;
+            menteeState.votes = { A: 0, B: 0, C: 0, D: 0 };
+            io.emit('nextMenteeQuestion', menteeState);
+        } else {
+            menteeState.isActive = false;
+            io.emit('endMenteeQuiz');
+        }
+    } else if (event === 'revealMenteeAnswer') {
+        menteeState.isRevealed = true;
+        io.emit('revealMenteeAnswer', menteeState);
+    } else if (event === 'endMenteeQuiz') {
+        menteeState.isActive = false;
+        io.emit('endMenteeQuiz');
     } else {
-        res.status(500).json({ error: "Socket IO not initialized" });
+        // Generic event pass-through
+        io.emit(event);
     }
+
+    res.json({ success: true, event, state: menteeState });
+};
+
+// Export for socket use
+export const handleMenteeVote = (io, option) => {
+    if (menteeState.votes.hasOwnProperty(option)) {
+        menteeState.votes[option]++;
+        io.emit('voteUpdate', menteeState.votes);
+    }
+};
+
+export const syncMenteeState = (socket) => {
+    socket.emit('mentee_state_sync', menteeState);
 };
 
 // --- FINAL RESULTS LOGIC ---

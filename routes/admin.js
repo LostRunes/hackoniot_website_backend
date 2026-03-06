@@ -13,7 +13,8 @@ router.get('/', (req, res) => {
 });
 
 // The actual socket trigger endpoint
-import { triggerAdminEvent } from '../controllers/apiController.js';
+import { triggerAdminEvent, getMenteeState } from '../controllers/apiController.js';
+router.get('/mentee-state', getMenteeState);
 router.post('/trigger', triggerAdminEvent);
 
 // Could easily add pure API endpoints here for editing database models directly

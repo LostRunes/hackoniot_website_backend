@@ -148,14 +148,40 @@
 
     <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 40px 0;">
 
+    <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 40px 0;">
+
     <h2 style="color: #e91e63; text-align: center;">MENTEE QUIZ CONTROLS</h2>
+
+    <!-- Live Mentee Monitor -->
+    <div
+      style="background: rgba(233, 30, 99, 0.1); border: 1px solid #e91e63; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-weight: bold; color: #e91e63;">LIVE MONITOR</span>
+        <span id="mentee-active-indicator"
+          style="font-size: 10px; background: #444; padding: 2px 6px; border-radius: 10px;">INACTIVE</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-family: monospace; font-size: 12px;">
+        <div>QUESTION: <span id="mentee-q-idx" color="#fff">0</span>/12</div>
+        <div>STATUS: <span id="mentee-reveal-status" color="#fff">HIDDEN</span></div>
+        <div
+          style="grid-column: span 2; border-top: 1px solid rgba(233, 30, 99, 0.2); padding-top: 10px; margin-top: 5px;">
+          VOTES:
+          <span style="color: #00E5FF;">A: <span id="v-A">0</span></span> |
+          <span style="color: #00E5FF;">B: <span id="v-B">0</span></span> |
+          <span style="color: #00E5FF;">C: <span id="v-C">0</span></span> |
+          <span style="color: #00E5FF;">D: <span id="v-D">0</span></span>
+        </div>
+      </div>
+    </div>
+
     <div class="btn-group">
+      <button onclick="triggerEvent('startMenteeQuiz')" style="background: #e91e63; color: white;">START/RESET
+        QUIZ</button>
       <button onclick="triggerEvent('nextMenteeQuestion')" style="background: #7A5FFF; color: white;">NEXT
         QUESTION</button>
       <button onclick="triggerEvent('revealMenteeAnswer')" style="background: #00FFA3; color: black;">REVEAL
         ANSWER</button>
-      <button onclick="triggerEvent('endMenteeQuiz')" class="danger" style="grid-column: span 2;">END MENTEE
-        QUIZ</button>
+      <button onclick="triggerEvent('endMenteeQuiz')" class="danger">END SESSION</button>
     </div>
 
     <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 40px 0;">
@@ -462,6 +488,33 @@
         }
       }
     }
+
+    // --- MENTEE MONITOR POLLING ---
+    async function refreshMenteeMonitor() {
+      try {
+        const res = await fetch('/admin/mentee-state');
+        const state = await res.json();
+
+        const indicator = document.getElementById('mentee-active-indicator');
+        indicator.innerText = state.isActive ? 'ACTIVE' : 'INACTIVE';
+        indicator.style.background = state.isActive ? '#00FFA3' : '#444';
+        indicator.style.color = state.isActive ? '#000' : '#fff';
+
+        document.getElementById('mentee-q-idx').innerText = state.activeQuestionIndex + 1;
+        document.getElementById('mentee-reveal-status').innerText = state.isRevealed ? 'REVEALED' : 'HIDDEN';
+        document.getElementById('mentee-reveal-status').style.color = state.isRevealed ? '#00FFA3' : '#fff';
+
+        document.getElementById('v-A').innerText = state.votes.A;
+        document.getElementById('v-B').innerText = state.votes.B;
+        document.getElementById('v-C').innerText = state.votes.C;
+        document.getElementById('v-D').innerText = state.votes.D;
+      } catch (err) {
+        console.error("Mentee Monitor Error:", err);
+      }
+    }
+
+    setInterval(refreshMenteeMonitor, 1000);
+    refreshMenteeMonitor();
 
     // Load initial list on page load
     fetchFinalResults();
