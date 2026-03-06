@@ -143,7 +143,9 @@ let menteeState = {
     isRevealed: false,
     votes: { A: 0, B: 0, C: 0, D: 0 },
     isActive: false,
-    standby: false
+    standby: false,
+    questionStartTime: 0,
+    votedParticipants: {}
 };
 
 export const getMenteeState = (req, res) => {
@@ -164,7 +166,15 @@ export const triggerAdminEvent = (req, res) => {
         io.emit('openMenteeQuiz');
         io.emit('mentee_state_sync', menteeState);
     } else if (event === 'startMenteeQuiz') {
-        menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true, standby: false };
+        menteeState = {
+            activeQuestionIndex: 0,
+            isRevealed: false,
+            votes: { A: 0, B: 0, C: 0, D: 0 },
+            isActive: true,
+            standby: false,
+            questionStartTime: Date.now(),
+            votedParticipants: {}
+        };
         io.emit('startMenteeQuiz', menteeState);
     } else if (event === 'nextMenteeQuestion') {
         const MAX_QUESTIONS = 12; // Hardcoded count from mentee_questions.json
@@ -172,6 +182,8 @@ export const triggerAdminEvent = (req, res) => {
             menteeState.activeQuestionIndex++;
             menteeState.isRevealed = false;
             menteeState.votes = { A: 0, B: 0, C: 0, D: 0 };
+            menteeState.questionStartTime = Date.now();
+            menteeState.votedParticipants = {};
             io.emit('nextMenteeQuestion', menteeState);
         } else {
             menteeState.isActive = false;
@@ -181,6 +193,38 @@ export const triggerAdminEvent = (req, res) => {
     } else if (event === 'revealMenteeAnswer') {
         menteeState.isRevealed = true;
         io.emit('revealMenteeAnswer', menteeState);
+
+        // Calculate scores asynchronously
+        setTimeout(async () => {
+            try {
+                const fs = await import('fs');
+                const path = await import('path');
+                const menteeQuestionsPath = path.join(path.resolve(), '..', 'src', 'assets', 'mentee_questions.json');
+                const rawQs = fs.readFileSync(menteeQuestionsPath, 'utf8');
+                const menteeQs = JSON.parse(rawQs);
+                const currentQ = menteeQs[menteeState.activeQuestionIndex];
+                const correctChar = String.fromCharCode(65 + currentQ.answer);
+
+                for (const [pId, voteData] of Object.entries(menteeState.votedParticipants)) {
+                    if (voteData.option === correctChar) {
+                        const scorePoints = Math.max(10, 1000 - (voteData.timeTaken * 40));
+                        await Participant.findByIdAndUpdate(pId, {
+                            $inc: { score: scorePoints, timeTaken: voteData.timeTaken }
+                        });
+                    } else {
+                        await Participant.findByIdAndUpdate(pId, {
+                            $inc: { timeTaken: voteData.timeTaken }
+                        });
+                    }
+                }
+
+                // Refresh leaderboard cache
+                const appIo = req.app.get('io');
+                await refreshLeaderboard(appIo, 'mentee');
+            } catch (err) {
+                console.error("Error calculating mentee scores:", err);
+            }
+        }, 0);
     } else if (event === 'endMenteeQuiz') {
         menteeState.isActive = false;
         menteeState.standby = false;
@@ -195,11 +239,27 @@ export const triggerAdminEvent = (req, res) => {
 };
 
 // Export for socket use
-export const handleMenteeVote = (io, option) => {
-    if (menteeState.votes.hasOwnProperty(option)) {
-        menteeState.votes[option]++;
-        io.emit('voteUpdate', menteeState.votes);
+export const handleMenteeVote = (io, data) => {
+    if (!menteeState.isActive || menteeState.isRevealed) return;
+
+    let option, participantId;
+    if (typeof data === 'string') {
+        option = data;
+    } else {
+        option = data.option;
+        participantId = data.participantId;
     }
+
+    if (!menteeState.votes.hasOwnProperty(option)) return;
+
+    if (participantId) {
+        if (menteeState.votedParticipants[participantId]) return; // Prevent double voting
+        const timeTaken = Math.floor((Date.now() - menteeState.questionStartTime) / 1000);
+        menteeState.votedParticipants[participantId] = { option, timeTaken };
+    }
+
+    menteeState.votes[option]++;
+    io.emit('voteUpdate', menteeState.votes);
 };
 
 export const syncMenteeState = (socket) => {
