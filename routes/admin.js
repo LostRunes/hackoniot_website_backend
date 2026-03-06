@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
 });
 
 // The actual socket trigger endpoint
-import { triggerAdminEvent, getMenteeState } from '../controllers/apiController.js';
+import { triggerAdminEvent, getMenteeState, clearLeaderboardCache } from '../controllers/apiController.js';
 router.get('/mentee-state', getMenteeState);
 router.post('/trigger', triggerAdminEvent);
 
@@ -35,8 +35,11 @@ router.delete('/leaderboard/:quizId', async (req, res) => {
     // Clear leaderboard logic
     await Participant.deleteMany({ quizId });
 
-    // Broadcast empty leaderboard
+    // Clear cache
     const io = req.app.get('io');
+    clearLeaderboardCache(quizId, io);
+
+    // Broadcast empty leaderboard
     if (io) io.emit(`leaderboardUpdate_${quizId}`, []);
     res.json({ success: true });
 });

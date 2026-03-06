@@ -30,6 +30,18 @@ const refreshLeaderboard = async (io, quizId) => {
     }
 };
 
+export const clearLeaderboardCache = (quizId, io) => {
+    leaderboardCache[quizId] = [];
+    if (quizId === 'mentee') {
+        menteeState.votes = { A: 0, B: 0, C: 0, D: 0 };
+        menteeState.votedParticipants = {};
+        if (io) {
+            io.emit('voteUpdate', menteeState.votes);
+            io.emit('mentee_state_sync', menteeState);
+        }
+    }
+};
+
 export const joinQuiz = async (req, res) => {
     try {
         const { name, email } = req.body;
