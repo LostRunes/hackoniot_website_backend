@@ -159,15 +159,10 @@ export const triggerAdminEvent = (req, res) => {
 
     // Handle Mentee Logic if event matches
     if (event === 'openMenteeQuiz') {
-        if (!menteeState.isActive && !menteeState.standby) {
-            menteeState.standby = true;
-            menteeState.isActive = false;
-            io.emit('openMenteeQuiz');
-            io.emit('mentee_state_sync', menteeState);
-        } else {
-            menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true, standby: false };
-            io.emit('startMenteeQuiz', menteeState);
-        }
+        menteeState.standby = true;
+        menteeState.isActive = false;
+        io.emit('openMenteeQuiz');
+        io.emit('mentee_state_sync', menteeState);
     } else if (event === 'startMenteeQuiz') {
         menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true, standby: false };
         io.emit('startMenteeQuiz', menteeState);
