@@ -142,7 +142,8 @@ let menteeState = {
     activeQuestionIndex: 0,
     isRevealed: false,
     votes: { A: 0, B: 0, C: 0, D: 0 },
-    isActive: false
+    isActive: false,
+    standby: false
 };
 
 export const getMenteeState = (req, res) => {
@@ -157,8 +158,18 @@ export const triggerAdminEvent = (req, res) => {
     if (!io) return res.status(500).json({ error: "Socket IO not initialized" });
 
     // Handle Mentee Logic if event matches
-    if (event === 'startMenteeQuiz') {
-        menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true };
+    if (event === 'openMenteeQuiz') {
+        if (!menteeState.isActive && !menteeState.standby) {
+            menteeState.standby = true;
+            menteeState.isActive = false;
+            io.emit('openMenteeQuiz');
+            io.emit('mentee_state_sync', menteeState);
+        } else {
+            menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true, standby: false };
+            io.emit('startMenteeQuiz', menteeState);
+        }
+    } else if (event === 'startMenteeQuiz') {
+        menteeState = { activeQuestionIndex: 0, isRevealed: false, votes: { A: 0, B: 0, C: 0, D: 0 }, isActive: true, standby: false };
         io.emit('startMenteeQuiz', menteeState);
     } else if (event === 'nextMenteeQuestion') {
         const MAX_QUESTIONS = 12; // Hardcoded count from mentee_questions.json
@@ -169,6 +180,7 @@ export const triggerAdminEvent = (req, res) => {
             io.emit('nextMenteeQuestion', menteeState);
         } else {
             menteeState.isActive = false;
+            menteeState.standby = false;
             io.emit('endMenteeQuiz');
         }
     } else if (event === 'revealMenteeAnswer') {
@@ -176,7 +188,9 @@ export const triggerAdminEvent = (req, res) => {
         io.emit('revealMenteeAnswer', menteeState);
     } else if (event === 'endMenteeQuiz') {
         menteeState.isActive = false;
+        menteeState.standby = false;
         io.emit('endMenteeQuiz');
+        io.emit('mentee_state_sync', menteeState);
     } else {
         // Generic event pass-through
         io.emit(event);
